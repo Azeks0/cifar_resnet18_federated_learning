@@ -1,0 +1,2 @@
+model,dataset,device,epochs,best_epoch,train_samples,val_samples,test_samples,train_loss,train_accuracy,val_loss,val_accuracy,test_loss,test_accuracy,best_checkpoint
+resnet18_cifar,CIFAR-10,cuda,30,30,45000,5000,10000,0.012677854826052984,0.9974888888888889,0.23501243352890014,0.9322,0.24811081409454347,0.9267,C:\Users\40770\Downloads\cifar_resnet18_baseline\cifar_resnet18_baseline\outputs\checkpoints\best_resnet18_cifar10.pt

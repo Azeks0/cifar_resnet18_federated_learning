@@ -1,0 +1,17 @@
+{
+  "model": "resnet18_cifar",
+  "dataset": "CIFAR-10",
+  "device": "cuda",
+  "epochs": 30,
+  "best_epoch": 30,
+  "train_samples": 45000,
+  "val_samples": 5000,
+  "test_samples": 10000,
+  "train_loss": 0.012677854826052984,
+  "train_accuracy": 0.9974888888888889,
+  "val_loss": 0.23501243352890014,
+  "val_accuracy": 0.9322,
+  "test_loss": 0.24811081409454347,
+  "test_accuracy": 0.9267,
+  "best_checkpoint": "C:\\Users\\40770\\Downloads\\cifar_resnet18_baseline\\cifar_resnet18_baseline\\outputs\\checkpoints\\best_resnet18_cifar10.pt"
+}

@@ -1,0 +1,26 @@
+{
+  "seed": 42,
+  "data_dir": "data",
+  "output_dir": "outputs",
+  "download": true,
+  "dataset": {
+    "train_size": 45000,
+    "val_size": 5000,
+    "num_classes": 10
+  },
+  "model": {
+    "name": "resnet18_cifar",
+    "num_classes": 10
+  },
+  "training": {
+    "epochs": 30,
+    "batch_size": 256,
+    "num_workers": 2,
+    "optimizer": "sgd",
+    "learning_rate": 0.1,
+    "momentum": 0.9,
+    "weight_decay": 0.0005,
+    "label_smoothing": 0.0,
+    "scheduler": "cosine"
+  }
+}
