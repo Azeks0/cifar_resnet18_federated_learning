@@ -1,0 +1,29 @@
+{
+  "seed": 42,
+  "data_dir": "data",
+  "output_dir": "outputs/fedavg",
+  "download": true,
+  "dataset": {
+    "val_size": 5000,
+    "n_clients": 3,
+    "num_classes": 10,
+    "dirichlet_alpha": 0.5
+  },
+  "model": {
+    "name": "resnet18_fedavg",
+    "num_classes": 10
+  },
+  "federated": {
+    "rounds": 10
+  },
+  "client": {
+    "epochs": 3,
+    "batch_size": 256,
+    "num_workers": 2,
+    "optimizer": "sgd",
+    "learning_rate": 0.05,
+    "momentum": 0.9,
+    "weight_decay": 0.0005,
+    "scheduler": "none"
+  }
+}

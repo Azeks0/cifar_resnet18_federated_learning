@@ -20,10 +20,14 @@ def plot_history(history: pd.DataFrame, output_dir: str | Path) -> None:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    has_train = "train_accuracy" in history.columns
+    x_label = "Epoch" if has_train else "Round"
+
     fig, ax = plt.subplots(figsize=(8.0, 4.6), dpi=150)
-    ax.plot(history["epoch"], history["train_accuracy"], marker="o", label="Train")
+    if has_train:
+        ax.plot(history["epoch"], history["train_accuracy"], marker="o", label="Train")
     ax.plot(history["epoch"], history["val_accuracy"], marker="o", label="Validation")
-    ax.set_xlabel("Epoch")
+    ax.set_xlabel(x_label)
     ax.set_ylabel("Accuracy")
     ax.set_title("ResNet-18 CIFAR-10 Accuracy")
     ax.grid(alpha=0.25)
@@ -33,9 +37,10 @@ def plot_history(history: pd.DataFrame, output_dir: str | Path) -> None:
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(8.0, 4.6), dpi=150)
-    ax.plot(history["epoch"], history["train_loss"], marker="o", label="Train")
+    if has_train:
+        ax.plot(history["epoch"], history["train_loss"], marker="o", label="Train")
     ax.plot(history["epoch"], history["val_loss"], marker="o", label="Validation")
-    ax.set_xlabel("Epoch")
+    ax.set_xlabel(x_label)
     ax.set_ylabel("Cross-entropy loss")
     ax.set_title("ResNet-18 CIFAR-10 Loss")
     ax.grid(alpha=0.25)
