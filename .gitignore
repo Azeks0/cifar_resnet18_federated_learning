@@ -4,3 +4,39 @@ __pycache__/
 data/
 outputs/checkpoints/
 tmp/
+
+# Virtual environments
+.venv/
+.venv39/
+venv/
+ENV/
+env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Ray / Flower
+ray_results/
+.ray/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+Thumbs.db
