@@ -1,0 +1,290 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+
+% Core packages
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{hyperref}
+
+% Paragraphs
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8\baselineskip}
+
+\title{Federated Learning for CIFAR-10 Image Classification under Non-IID Client Partitions}
+\author{Author Name}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Federated learning trains a shared model across distributed clients without moving the clients' raw data to a central server. This report studies that setting on CIFAR-10 image classification using a ResNet-18 model and non-IID client partitions generated with a Dirichlet concentration parameter of $\alpha=0.5$. A centralized full-precision baseline is compared against two federated strategies: Federated Averaging (FedAvg) and Federated Distillation/Fusion (FedDF). The centralized model achieves the strongest result, reaching $92.67\%$ test accuracy and $0.2481$ test loss. Among the federated runs, FedAvg performs best overall with $78.58\%$ test accuracy, while FedDF reaches $74.72\%$. The class-level confusion matrices show that non-IID partitioning creates uneven behavior across classes, most notably a collapse of FedAvg recall for the CIFAR-10 cat class despite strong recall on several other classes. These results confirm the central trade-off of federated learning: privacy-preserving distributed training is feasible, but statistical heterogeneity can substantially reduce accuracy and stability relative to centralized training.
+\end{abstract}
+
+\section{Introduction}
+
+Many machine-learning workflows assume that all training data can be collected in one location. In practice, this assumption can fail because data are private, regulated, too large to transfer, or owned by multiple organizations. Federated learning (FL) addresses this problem by sending model parameters to clients, allowing clients to train locally, and aggregating model updates on a server rather than centralizing the raw data \cite{mcmahan2017communication,kairouz2021advances}.
+
+This project evaluates FL on CIFAR-10 image classification. The main question is how much performance is lost when training is moved from a centralized baseline to federated training with heterogeneous client data. The report focuses on three methods:
+\begin{itemize}
+    \item a centralized ResNet-18 baseline trained on the full training split;
+    \item FedAvg, the standard weighted parameter-averaging strategy;
+    \item FedDF, a distillation-based federated fusion strategy using auxiliary unlabeled data.
+\end{itemize}
+
+The experimental results show that the centralized baseline remains the best-performing configuration. However, FedAvg and FedDF both learn useful global models under non-IID partitioning, with FedAvg achieving the higher aggregate test accuracy and FedDF showing a less extreme failure on the cat class.
+
+\section{Background and Related Work}
+
+\subsection{Centralized and Federated Training}
+
+In centralized learning, the server has direct access to the complete training data. This simplifies optimization because all batches are sampled from the same global distribution, but it creates privacy, storage, and communication concerns. In federated learning, clients retain their local datasets and exchange model parameters or updates with the server. This reduces raw-data movement, but it introduces new challenges: client data can be non-IID, client devices can have different compute capabilities, and communication can become a bottleneck \cite{kairouz2021advances}.
+
+\subsection{Federated Averaging}
+
+FedAvg is the canonical FL algorithm introduced by McMahan et al. \cite{mcmahan2017communication}. At communication round $t$, the server broadcasts the global model $w_t$ to selected clients. Each client $k$ performs local training on its private dataset and returns an updated model $w_{t+1}^{(k)}$. The server computes a weighted average,
+\begin{equation}
+    w_{t+1}=\sum_{k=1}^{K}\frac{n_k}{\sum_{j=1}^{K}n_j}w_{t+1}^{(k)},
+\end{equation}
+where $n_k$ is the number of samples on client $k$. FedAvg is communication-efficient because clients can perform multiple local steps before communicating. Its weakness is that local updates can drift in different directions when client distributions are highly heterogeneous \cite{li2020federated,hsu2019measuring}.
+
+\subsection{Federated Distillation/Fusion}
+
+FedDF improves global model fusion by using ensemble distillation rather than simple parameter averaging \cite{lin2020ensemble}. In the implementation evaluated here, client models act as an ensemble teacher over an auxiliary unlabeled dataset, and the server trains a global student model to match the teacher distribution. With temperature $T$, the server minimizes a distillation objective of the form
+\begin{equation}
+    \mathcal{L}_{\mathrm{DF}} = T^2\,\mathrm{KL}\!\left(\bar{p}_T(y\mid x)\,\Vert\,p_T(y\mid x;w)\right),
+\end{equation}
+where $\bar{p}_T$ is the averaged teacher prediction and $p_T$ is the global student prediction. This can reduce the mismatch caused by averaging parameters from models trained on different client distributions, but it depends on the quality and relevance of the auxiliary data.
+
+\section{Methodology}
+
+\subsection{Task and Dataset}
+
+The task is 10-class image classification on CIFAR-10 \cite{krizhevsky2009learning}. CIFAR-10 contains small natural images from the classes airplane, automobile, bird, cat, deer, dog, frog, horse, ship, and truck. The experiments use 45,000 training images, 5,000 validation images, and 10,000 test images for the centralized baseline and FedAvg. The FedDF run uses 35,000 client samples, 10,000 server samples, and 10,000 unlabeled STL-10 samples for distillation \cite{coates2011analysis}.
+
+The federated runs use three clients. Client partitions are non-IID and generated with a Dirichlet concentration parameter of $\alpha=0.5$. Lower $\alpha$ values create more class imbalance across clients, so this setting intentionally tests the robustness of each aggregation strategy under heterogeneous data.
+
+\subsection{Model}
+
+All experiments use a ResNet-18 architecture adapted for CIFAR-10 classification \cite{he2016deep}. The centralized baseline trains a single model directly on the full training split. The federated experiments use the same model family but train through server-client rounds. Accuracy and cross-entropy loss are measured on the validation and test splits.
+
+\subsection{Federated Implementation}
+
+The project follows the Flower framework workflow for server-client federated training \cite{beutel2020flower}. In each federated round, clients train locally, return updates or client models, and the server produces the next global model using the selected strategy. FedAvg aggregates client parameters using client sample counts. FedDF uses server-side distillation with temperature $T=4$ and an auxiliary unlabeled STL-10 distillation set.
+
+\section{Experimental Setup}
+
+Table~\ref{tab:config} summarizes the three exported runs. The centralized baseline is trained for 30 epochs, while the federated configurations are trained for 10 communication rounds.
+
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{Experimental configurations from the exported project summaries.}
+\label{tab:config}
+\begin{tabular}{@{}p{0.16\linewidth}p{0.16\linewidth}p{0.18\linewidth}p{0.20\linewidth}p{0.15\linewidth}p{0.08\linewidth}@{}}
+\toprule
+Method & Model & CIFAR-10 training data & Additional data & Partitioning & Length \\
+\midrule
+Centralized & ResNet-18 & 45,000 train, 5,000 validation & None & Centralized & 30 epochs \\
+FedAvg & ResNet-18 & 45,000 client samples, 5,000 validation & None & 3 clients, Dirichlet $\alpha=0.5$ & 10 rounds \\
+FedDF & ResNet-18 & 35,000 client samples, 10,000 server samples, 5,000 validation & 10,000 unlabeled STL-10 distillation samples & 3 clients, Dirichlet $\alpha=0.5$ & 10 rounds \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The primary metrics are validation accuracy, validation loss, test accuracy, and test loss. Training time is also recorded from the exported history files. For the centralized baseline and FedDF, the reported time is the sum of per-epoch or per-round durations. For FedAvg, the history file records cumulative elapsed time, so the final elapsed time is reported.
+
+\section{Results}
+
+\subsection{Aggregate Performance}
+
+Table~\ref{tab:main-results} gives the main validation and test results. The centralized baseline achieves the best test accuracy, $92.67\%$, and the lowest test loss, $0.2481$. FedAvg is the stronger federated method, reaching $78.58\%$ test accuracy. FedDF reaches $74.72\%$ test accuracy and peaks at validation round 7, after which validation accuracy decreases.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Main performance comparison. Accuracy values are percentages.}
+\label{tab:main-results}
+\begin{tabular}{@{}lrrrrrl@{}}
+\toprule
+Method & Val. loss & Val. acc. & Test loss & Test acc. & Time & Best point \\
+\midrule
+Centralized & 0.2350 & 93.22 & 0.2481 & 92.67 & 15.9 min & epoch 30 \\
+FedAvg & 0.6102 & 78.80 & 0.6247 & 78.58 & 32.2 min & round 10 \\
+FedDF & 0.7081 & 75.04 & 0.7118 & 74.72 & 25.5 min & round 7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The centralized baseline exceeds FedAvg by $14.09$ percentage points and FedDF by $17.95$ percentage points in test accuracy. FedAvg exceeds FedDF by $3.86$ percentage points. This gap indicates that moving to federated training under non-IID data has a larger effect than the difference between the two federated strategies in this experiment.
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/accuracy_curve.png}
+    \caption{Centralized}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/accuracy_curve_3.png}
+    \caption{FedAvg}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/accuracy_curve_2.png}
+    \caption{FedDF}
+\end{subfigure}
+\caption{Accuracy curves for the centralized baseline and federated strategies. The centralized model converges to the highest validation accuracy, FedAvg improves through round 10, and FedDF reaches its best validation accuracy at round 7.}
+\label{fig:accuracy}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/loss_curve.png}
+    \caption{Centralized}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/loss_curve_3.png}
+    \caption{FedAvg}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/loss_curve_2.png}
+    \caption{FedDF}
+\end{subfigure}
+\caption{Loss curves for the three runs. The centralized baseline achieves the lowest validation loss. The federated methods have higher loss under the non-IID client partition.}
+\label{fig:loss}
+\end{figure}
+
+\subsection{Class-Level Behavior}
+
+Overall accuracy hides important class-level differences. Table~\ref{tab:class-recall} reports per-class recall computed from the confusion matrices. The centralized baseline is balanced across classes, with recall above $84\%$ for every class. FedDF is weaker overall but still recognizes every class at non-trivial recall. FedAvg, despite having the best federated test accuracy, almost completely misses the cat class, with only $0.6\%$ recall.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Per-class recall from the test confusion matrices. Values are percentages.}
+\label{tab:class-recall}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Class & Centralized & FedAvg & FedDF \\
+\midrule
+Airplane & 93.7 & 81.7 & 78.3 \\
+Automobile & 97.4 & 93.8 & 82.9 \\
+Bird & 89.2 & 67.5 & 73.5 \\
+Cat & 84.6 & 0.6 & 56.8 \\
+Deer & 92.6 & 95.4 & 69.9 \\
+Dog & 87.0 & 83.7 & 57.9 \\
+Frog & 95.8 & 91.0 & 86.6 \\
+Horse & 95.4 & 88.5 & 73.4 \\
+Ship & 95.2 & 96.2 & 79.1 \\
+Truck & 95.8 & 87.4 & 88.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/confusion_matrix.png}
+    \caption{Centralized}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/confusion_matrix_3.png}
+    \caption{FedAvg}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{prism-uploads/confusion_matrix_2.png}
+    \caption{FedDF}
+\end{subfigure}
+\caption{Test confusion matrices. FedAvg has strong recall on several classes but severely confuses cats with dog and deer-like classes, illustrating how non-IID client data can produce class-specific failures.}
+\label{fig:confusion}
+\end{figure}
+
+\section{Discussion}
+
+The results support three main observations. First, centralized training remains the upper bound in this experiment because it can optimize directly over the complete CIFAR-10 training distribution. Its validation and test accuracies are close, suggesting good generalization rather than simple overfitting.
+
+Second, FedAvg is the best federated method by aggregate accuracy. This is expected because FedAvg directly optimizes the target CIFAR-10 task using all 45,000 client samples. However, the confusion matrix shows that aggregate accuracy can hide dangerous failures: the model performs very well on deer, ship, automobile, and frog, but fails on cat. This is consistent with client drift under non-IID partitions, where local updates overrepresent some class mixtures and underrepresent others.
+
+Third, FedDF does not outperform FedAvg in this run, but its class-level behavior is less extreme for cat recognition. The auxiliary STL-10 distillation set may help smooth the global model by exposing the server to broader natural-image structure, but the domain mismatch and reduced number of client samples likely limit the final accuracy. FedDF also peaks before the final round, indicating that model selection by validation accuracy is important for distillation-based strategies.
+
+\section{Limitations}
+
+This study is limited to one dataset, one model architecture, three clients, one Dirichlet heterogeneity level, and one exported run per method. Because no repeated random seeds are included, the results should be interpreted as a project comparison rather than a statistically complete benchmark. The experiment also evaluates privacy from the perspective of data locality only; it does not implement differential privacy, secure aggregation, or defenses against gradient leakage. Finally, communication cost is represented indirectly through round time rather than explicit byte-level accounting.
+
+\section{Conclusion}
+
+The project demonstrates the main practical trade-off in federated image classification. A centralized ResNet-18 trained on CIFAR-10 achieves $92.67\%$ test accuracy. Under non-IID federated training with three clients and $\alpha=0.5$, FedAvg reaches $78.58\%$ and FedDF reaches $74.72\%$. FedAvg is the strongest federated strategy overall, but its class-level collapse on cats shows that non-IID partitions can create serious hidden errors. Future work should evaluate more clients, repeated seeds, stronger heterogeneity controls, and additional strategies such as FedProx, SCAFFOLD, or adaptive client weighting.
+
+\section*{Reproducibility Note}
+
+The reported metrics and figures are taken from the supplied project exports in \path{prism-uploads/}: \path{summary.csv}, \path{summary_2.csv}, \path{summary_3.csv}, \path{history.csv}, \path{history_2.csv}, \path{history_3.csv}, and the corresponding accuracy, loss, and confusion-matrix image files.
+
+\begin{thebibliography}{9}
+
+\bibitem{mcmahan2017communication}
+H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise Ag{"u}era y Arcas.
+\newblock Communication-efficient learning of deep networks from decentralized data.
+\newblock In \emph{Proceedings of AISTATS}, 2017.
+
+\bibitem{kairouz2021advances}
+Peter Kairouz et al.
+\newblock Advances and open problems in federated learning.
+\newblock \emph{Foundations and Trends in Machine Learning}, 14(1--2):1--210, 2021.
+
+\bibitem{li2020federated}
+Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and Virginia Smith.
+\newblock Federated optimization in heterogeneous networks.
+\newblock In \emph{Proceedings of MLSys}, 2020.
+
+\bibitem{hsu2019measuring}
+Tzu-Ming Harry Hsu, Hang Qi, and Matthew Brown.
+\newblock Measuring the effects of non-identical data distribution for federated visual classification.
+\newblock arXiv:1909.06335, 2019.
+
+\bibitem{lin2020ensemble}
+Tao Lin, Lingjing Kong, Sebastian U. Stich, and Martin Jaggi.
+\newblock Ensemble distillation for robust model fusion in federated learning.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2020.
+
+\bibitem{krizhevsky2009learning}
+Alex Krizhevsky.
+\newblock Learning multiple layers of features from tiny images.
+\newblock Technical report, University of Toronto, 2009.
+
+\bibitem{coates2011analysis}
+Adam Coates, Andrew Y. Ng, and Honglak Lee.
+\newblock An analysis of single-layer networks in unsupervised feature learning.
+\newblock In \emph{Proceedings of AISTATS}, 2011.
+
+\bibitem{he2016deep}
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.
+\newblock Deep residual learning for image recognition.
+\newblock In \emph{Proceedings of CVPR}, 2016.
+
+\bibitem{beutel2020flower}
+Daniel J. Beutel et al.
+\newblock Flower: A friendly federated learning research framework.
+\newblock arXiv:2007.14390, 2020.
+
+\end{thebibliography}
+
+\end{document}
