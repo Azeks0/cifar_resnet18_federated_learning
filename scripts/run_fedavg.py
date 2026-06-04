@@ -91,7 +91,15 @@ def main() -> None:
         seed=seed,
     )
     val_set = Subset(full_train_eval, val_idx.tolist())
+    train_eval_set = Subset(full_train_eval, train_idx.tolist())
     
+    train_eval_loader = make_loader(
+        train_eval_set,
+        batch_size=int(config["client"]["batch_size"]),
+        shuffle=False,
+        num_workers=int(config["client"]["num_workers"]),
+        seed=seed,
+    )
     val_loader = make_loader(
         val_set,
         batch_size=int(config["client"]["batch_size"]),
@@ -158,12 +166,15 @@ def main() -> None:
 
     # Round 0: evaluate the initial (random) model
     server_model.to(device)
-    metrics = evaluate(server_model, val_loader, criterion, device)
+    train_metrics = evaluate(server_model, train_eval_loader, criterion, device)
+    val_metrics = evaluate(server_model, val_loader, criterion, device)
     elapsed = time.perf_counter() - t0
-    print(f"  Round 0 val_loss={metrics.loss:.4f} val_acc={metrics.accuracy:.4f} time={elapsed:.1f}s")
+    print(f"  Round 0 train_loss={train_metrics.loss:.4f} train_acc={train_metrics.accuracy:.4f} val_loss={val_metrics.loss:.4f} val_acc={val_metrics.accuracy:.4f} time={elapsed:.1f}s")
     history_records.append({
-        "epoch": 0, "val_loss": metrics.loss,
-        "val_accuracy": metrics.accuracy, "epoch_time_sec": elapsed,
+        "epoch": 0,
+        "train_loss": train_metrics.loss, "train_accuracy": train_metrics.accuracy,
+        "val_loss": val_metrics.loss, "val_accuracy": val_metrics.accuracy,
+        "epoch_time_sec": elapsed,
     })
 
     global_state = copy.deepcopy(server_model.state_dict())
@@ -199,17 +210,20 @@ def main() -> None:
         # ── Centralized evaluation ────────────────────────────────────────
         server_model.load_state_dict(global_state)
         server_model.to(device)
-        metrics = evaluate(server_model, val_loader, criterion, device)
+        train_metrics = evaluate(server_model, train_eval_loader, criterion, device)
+        val_metrics = evaluate(server_model, val_loader, criterion, device)
         elapsed = time.perf_counter() - t0
-        print(f"  Round {rnd} val_loss={metrics.loss:.4f} val_acc={metrics.accuracy:.4f} time={elapsed:.1f}s")
+        print(f"  Round {rnd} train_loss={train_metrics.loss:.4f} train_acc={train_metrics.accuracy:.4f} val_loss={val_metrics.loss:.4f} val_acc={val_metrics.accuracy:.4f} time={elapsed:.1f}s")
 
         history_records.append({
-            "epoch": rnd, "val_loss": metrics.loss,
-            "val_accuracy": metrics.accuracy, "epoch_time_sec": elapsed,
+            "epoch": rnd,
+            "train_loss": train_metrics.loss, "train_accuracy": train_metrics.accuracy,
+            "val_loss": val_metrics.loss, "val_accuracy": val_metrics.accuracy,
+            "epoch_time_sec": elapsed,
         })
 
-        if metrics.accuracy > best_val_accuracy:
-            best_val_accuracy = metrics.accuracy
+        if val_metrics.accuracy > best_val_accuracy:
+            best_val_accuracy = val_metrics.accuracy
             torch.save(
                 {"round": rnd, "model_state_dict": server_model.state_dict(), "config": config},
                 best_path,

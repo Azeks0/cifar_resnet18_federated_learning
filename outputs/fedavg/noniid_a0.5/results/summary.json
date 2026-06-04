@@ -9,9 +9,9 @@
   "val_samples": 5000,
   "test_samples": 10000,
   "dirichlet_alpha": 0.5,
-  "val_loss": 0.6102294453620911,
-  "val_accuracy": 0.788,
-  "test_loss": 0.624714072227478,
-  "test_accuracy": 0.7858,
+  "val_loss": 0.6040436330795288,
+  "val_accuracy": 0.7758,
+  "test_loss": 0.6244818719863892,
+  "test_accuracy": 0.7726,
   "best_checkpoint": "C:\\Users\\Darius\\Documents\\MASTER\\SEM 2\\BOSCH\\cifar_resnet18_federated_learning\\outputs\\fedavg\\noniid_a0.5\\checkpoints\\best_fedavg.pt"
 }
