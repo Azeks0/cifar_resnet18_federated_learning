@@ -1,0 +1,17 @@
+{
+  "model": "resnet18_fedflower",
+  "method": "fedadam_noniid_a0.5",
+  "dataset": "CIFAR-10",
+  "device": "cuda",
+  "rounds": 10,
+  "n_clients": 3,
+  "total_client_samples": 45000,
+  "val_samples": 5000,
+  "test_samples": 10000,
+  "dirichlet_alpha": 0.5,
+  "val_loss": 0.5290,
+  "val_accuracy": 0.8220,
+  "test_loss": 0.5412,
+  "test_accuracy": 0.8185,
+  "elapsed_sec": 1868.5
+}

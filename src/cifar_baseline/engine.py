@@ -38,8 +38,12 @@ def seed_everything(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-def choose_device() -> torch.device:
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def choose_device(cuda_device: int | None = None) -> torch.device:
+    if torch.cuda.is_available():
+        if cuda_device is not None:
+            return torch.device(f"cuda:{cuda_device}")
+        return torch.device("cuda")
+    return torch.device("cpu")
 
 
 def make_loader(dataset, *, batch_size: int, shuffle: bool, num_workers: int, seed: int) -> DataLoader:
